@@ -1,0 +1,26 @@
+FROM node:21-alpine AS build-stage
+
+WORKDIR /app
+RUN corepack enable
+
+COPY . .
+RUN ls
+RUN node -v
+RUN npm -v
+RUN pnpm -v
+RUN pnpm i
+
+RUN pnpm run build
+
+FROM node:18-alpine AS production-stage
+WORKDIR /usr/src/app
+COPY --from=build-stage /app/build /usr/src/app
+COPY --from=build-stage /app/package.json /usr/src/app
+RUN ls
+RUN npm i -g pnpm
+RUN pnpm install --only=prod
+
+ENV NODE_ENV=production
+ENV PORT=3334
+
+CMD ["npm", "run", "prod"]

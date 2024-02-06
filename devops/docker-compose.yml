@@ -1,0 +1,15 @@
+version: '3.7'
+services:
+  backendEndpoint:
+    image: guygubaby/my-backend:latest
+    build:
+      context: .
+      dockerfile: devops/Dockerfile.backend
+    restart: unless-stopped
+    ports:
+      - 3334:3334
+    networks:
+      - backend
+
+networks:
+  backend:
