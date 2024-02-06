@@ -13,57 +13,18 @@ const logger = createLogger('user route')
 
 userRouter.get('/', authMiddleware, async (req, res) => {
   try {
-    const users = await UserModel.findMany()
+    const users = await UserModel.findMany({
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+      },
+    })
     respSuccess(res, logger, { data: users })
   }
   catch (error) {
     respFailed(res, logger, { err: error })
   }
-})
-
-userRouter.post('/login', async (req, res) => {
-  const { username, password } = req.body
-
-  const user = await UserModel.findUnique({
-    where: {
-      phone: username,
-      name: username,
-    },
-  })
-
-  if (!user) {
-    return respFailed(res, logger, {
-      msg: 'User not found',
-      statusCode: 404,
-    })
-  }
-
-  // bcrypt.compare(password, user.password, (err, result) => {
-  //   if (err) {
-  //     return respFailed(res, logger, {
-  //       err,
-  //       msg: 'Internal server error',
-  //       statusCode: 500,
-  //     })
-  //   }
-
-  //   if (!result) {
-  //     return respFailed(res, logger, {
-  //       msg: 'Invalid password',
-  //       statusCode: 403,
-  //     })
-  //   }
-
-  //   const token = jwt.sign(
-  //     {
-  //       user,
-  //     },
-  //     JWT_SECRET,
-  //     { expiresIn: '7d', algorithm: 'HS256' },
-  //   )
-
-  //   respSuccess(res, logger, { msg: 'Login success', data: { token, user } })
-  // })
 })
 
 userRouter.post('/check-token', async (req, res) => {
@@ -86,38 +47,35 @@ userRouter.post('/check-token', async (req, res) => {
 })
 
 userRouter.post('/register', async (req, res) => {
-  const { username, password, nickname } = req.body
-  const user = await UserModel.findUnique({
+  const { phone, name, password } = req.body
+
+  const existUser = await UserModel.findUnique({
     where: {
-      phone: username,
-      name: username,
+      phone,
     },
   })
 
-  if (user) {
+  if (existUser) {
     return respFailed(res, logger, {
-      msg: 'User already exist',
-      statusCode: 409,
+      msg: 'User already exists',
+      statusCode: 403,
     })
   }
 
-  bcrypt.hash(password, 10, async (err, hash) => {
-    if (err) {
-      return respFailed(res, logger, {
-        err,
-        msg: 'Internal server error',
-        statusCode: 500,
-      })
-    }
+  const hashedPassword = await bcrypt.hash(password, 10)
 
-    const user = new UserModel({
-      username,
-      password: hash,
-      nickname,
+  try {
+    const user = await UserModel.create({
+      data: {
+        phone,
+        name,
+        password: hashedPassword,
+      },
     })
 
-    await user.save()
-
-    respSuccess(res, logger, { msg: 'Register success' })
-  })
+    respSuccess(res, logger, { msg: 'Register success', data: user })
+  }
+  catch (error) {
+    respFailed(res, logger, { err: error })
+  }
 })
